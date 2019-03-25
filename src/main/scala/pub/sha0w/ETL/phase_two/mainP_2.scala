@@ -1,9 +1,11 @@
 package pub.sha0w.ETL.phase_two
 
 import org.apache.spark.SparkConf
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{ArrayType, StructType}
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.{Row, SaveMode, SparkSession}
+import utils.JedisImplSer
 
 import scala.collection.mutable
 
@@ -23,12 +25,31 @@ object mainP_2 {
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val sc = sparkSession.sparkContext
     val sql = sparkSession.sqlContext
+    val jedis : JedisImplSer = new JedisImplSer("10.0.88.50", 6379)
+    val jedis_broad : Broadcast[JedisImplSer] = sc.broadcast(jedis)
     //read table
     val paper_ds = sql.read.table(hive_v2_paper_table_name)
-    paper_ds.schema
-
-    //change the needed field pair
-    //write back
+    val schema = paper_ds.schema
+    val a_id_index = getAuthorIdIndex(schema)
+    val a_index = getAuthorIndex(schema)
+    val v_id_index = getVenueIdIndex(schema)
+    val v_index = getVenueIndex(schema)
+    val changed_rdd = paper_ds.rdd.map(r => {
+      var ret = r
+      val a_id = getAuthorId(r, a_index, a_id_index)
+      if (a_id.isDefined) {
+        val seq = a_id.get.map(s => jedis_broad.value.getJedis.get(s))
+        ret = modifier(ret, a_index, a_id_index, seq)
+      }
+      val v_id = getVenueId(r, v_index, v_id_index)
+      if (v_id.isDefined) {
+        val str = jedis_broad.value.getJedis.get(v_id.get)
+        ret = modifier(ret, v_index, v_id_index, str)
+      }
+      ret
+    })
+    val changed_ds = sql.createDataFrame(changed_rdd, schema)
+    changed_ds.write.mode(SaveMode.Overwrite).json("/tmp/oadv2/paper_final")
   }
   def getAuthorIndex (root_schema : StructType) : Int = {
     root_schema.fieldIndex("authors")
