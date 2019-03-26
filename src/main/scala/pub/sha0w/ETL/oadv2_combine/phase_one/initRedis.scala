@@ -1,4 +1,4 @@
-package pub.sha0w.ETL.phase_one
+package pub.sha0w.ETL.oadv2_combine.phase_one
 
 import com.redislabs.provider.redis._
 import org.apache.spark.SparkConf

@@ -1,7 +1,6 @@
-package pub.sha0w.ETL.phase_two
+package pub.sha0w.ETL.oadv2_combine.phase_two
 
 import org.apache.spark.SparkConf
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{ArrayType, StructType}
 import org.apache.spark.sql.{Row, SaveMode, SparkSession}
@@ -22,11 +21,15 @@ object mainP_2 {
       .set("spark.driver.maxResultSize", "4g")
       .set("spark.default.parallelism", "500")
       .setAppName("MY_APP_NAME")
-    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+    val sparkSession = SparkSession
+      .builder()
+      .enableHiveSupport()
+      .config(sparkConf)
+      .getOrCreate()
     val sc = sparkSession.sparkContext
     val sql = sparkSession.sqlContext
     val jedis : JedisImplSer = new JedisImplSer("10.0.88.50", 6379)
-    val jedis_broad : Broadcast[JedisImplSer] = sc.broadcast(jedis)
+//    val jedis_broad : Broadcast[JedisImplSer] = sc.broadcast(jedis)
     //read table
     val paper_ds = sql.read.table(hive_v2_paper_table_name)
     val schema = paper_ds.schema
@@ -38,29 +41,39 @@ object mainP_2 {
       var ret = r
       val a_id = getAuthorId(r, a_index, a_id_index)
       if (a_id.isDefined) {
-        val seq = a_id.get.map(s => jedis_broad.value.getJedis.get(s))
-        ret = modifier(ret, a_index, a_id_index, seq)
+        val seq = a_id.get.map(s => {
+          if (s != null)
+            jedis.getJedis.get(s)
+          else
+            s
+        })
+        ret = _modifier(ret, a_index, a_id_index, seq)
       }
       val v_id = getVenueId(r, v_index, v_id_index)
       if (v_id.isDefined) {
-        val str = jedis_broad.value.getJedis.get(v_id.get)
+        val str = jedis.getJedis.get(v_id.get)
         ret = modifier(ret, v_index, v_id_index, str)
       }
       ret
     })
+
+    val sample = changed_rdd.take(10)
+    sample.toList.foreach(println(_))
+    println(paper_ds.show(10))
     val changed_ds = sql.createDataFrame(changed_rdd, schema)
     changed_ds.write.mode(SaveMode.Overwrite).json("/tmp/oadv2/paper_final")
   }
   def getAuthorIndex (root_schema : StructType) : Int = {
     root_schema.fieldIndex("authors")
   }
-  def getAuthorIdIndex (root_schema : StructType) : Int =
+  def getAuthorIdIndex (root_schema : StructType) : Int = {
     root_schema(getAuthorIndex(root_schema))
       .dataType
       .asInstanceOf[ArrayType]
       .elementType
       .asInstanceOf[StructType]
       .fieldIndex("id")
+  }
 
   def getVenueIndex (root_schema : StructType) : Int = {
     root_schema.fieldIndex("venue")
@@ -74,11 +87,13 @@ object mainP_2 {
   }
 
   def getVenueId (row : Row, index_1 : Int, index_2 : Int) : Option[String] = {
-    Option(row.getAs[GenericRowWithSchema](index_1)
-      .getAs[String](index_2))
+    val opt_1 = Option(row.getAs[GenericRowWithSchema](index_1))
+    if (opt_1.isDefined)
+      Option(opt_1.get.getAs[String](index_2))
+    else Option(null)
   }
 
-  def getVenueId (row : Row, schema : StructType) : Option[String] = {
+  def _getVenueId (row : Row, schema : StructType) : Option[String] = {
     val venue_index = getVenueIndex(schema)
     val venue_id_index = getVenueIdIndex(schema)
     getVenueId(row, venue_index, venue_id_index)
@@ -90,39 +105,50 @@ object mainP_2 {
         .map(gr => gr.getAs[String](index_2))
     )
   }
-  def getAuthorId (row : Row, schema : StructType) : Option[Seq[String]] = {
+  def _getAuthorId (row : Row, schema : StructType) : Option[Seq[String]] = {
     val author_index = getAuthorIndex(schema)
     val author_id_index = getAuthorIdIndex(schema)
     getAuthorId(row, author_index, author_id_index)
   }
   def modifier(row: Row, index_1 : Int
               , index_2 : Int, other_string : String) : Row = {
+    if (other_string == null) return row
     val seq : Seq[Any] = row.toSeq
-    val changed = seq.updated(index_1, {
+    val changed_value: GenericRowWithSchema = {
       val inside = seq(index_1)
         .asInstanceOf[GenericRowWithSchema]
       val stuff = inside
         .toSeq
         .asInstanceOf[Seq[String]]
-      val other = stuff.updated(index_2, other_string)
-      new GenericRowWithSchema(other.toArray, inside.schema)
-    })
+      new GenericRowWithSchema(stuff.updated(index_2, other_string).toArray, inside.schema)
+    }
+    println(changed_value)
+    val changed: Seq[Any] = seq.updated(index_1, changed_value)
+    println(changed)
     Row.fromSeq(changed)
   }
 
-  def modifier(row: Row, index_1 : Int
+  def _modifier(row: Row, index_1 : Int
                , index_2 : Int, other_strings : Seq[String]) : Row = {
     val seq : Seq[Any] = row.toSeq
     val changed = seq.updated(index_1, {
       val inside = seq(index_1)
         .asInstanceOf[mutable.WrappedArray[GenericRowWithSchema]]
-      // TODO
       var i = 0
       val row_seq = for (gr <- inside) yield {
-        val stuff = gr.toSeq.asInstanceOf[Seq[String]]
-        val other = stuff.updated(index_2, other_strings(i))
-        new GenericRowWithSchema(other.toArray, gr.schema)
+        if(other_strings(i) == null) {
+          i += 1
+          gr
+        }
+        else {
+          val stuff = gr.toSeq.asInstanceOf[Seq[String]]
+          val other = stuff.updated(index_2, other_strings(i))
+          i += 1
+          new GenericRowWithSchema(other.toArray, gr.schema)
+        }
+
       }
+      row_seq
     })
     Row.fromSeq(changed)
   }
