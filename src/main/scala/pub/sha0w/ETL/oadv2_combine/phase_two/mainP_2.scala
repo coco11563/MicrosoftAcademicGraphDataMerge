@@ -9,13 +9,11 @@ import utils.JedisImplSer
 import scala.collection.mutable
 
 object mainP_2 {
-  val hive_v2_venue_table_name = "oadv2.venues"
-  val hive_v2_author_table_name = "oadv2.authors"
+  /**
+    * paper key wash
+    */
   val hive_v2_paper_table_name = "oadv2.papers"
 
-  val author_linking : String = "/oadv2/author_linking_pairs.txt"
-  val venue_linking : String = "/oadv2/venue_linking_pairs.txt"
-  val paper_linking : String = "/oadv2/paper_linking_pairs.txt"
   def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf()
       .set("spark.driver.maxResultSize", "4g")
@@ -135,7 +133,7 @@ object mainP_2 {
       val inside = seq(index_1)
         .asInstanceOf[mutable.WrappedArray[GenericRowWithSchema]]
       var i = 0
-      val row_seq = for (gr <- inside) yield {
+      val row_seq: mutable.Seq[GenericRowWithSchema] = for (gr <- inside) yield {
         if(other_strings(i) == null) {
           i += 1
           gr

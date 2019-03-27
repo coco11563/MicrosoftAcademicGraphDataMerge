@@ -1,7 +1,5 @@
 package jedisTest
 
-import java.util.UUID
-
 import pub.sha0w.ETL.JedisUtils
 import redis.clients.jedis.HostAndPort
 import utils.JedisImplSer
@@ -9,7 +7,7 @@ import utils.JedisImplSer
 object testPickAndPut {
   def main(args: Array[String]): Unit = {
     val jedis : JedisImplSer = new JedisImplSer(new HostAndPort("10.0.88.50", 6379))
-//    JedisUtils.resetRedis(jedis.getJedis)
+    JedisUtils.resetRedis(jedis.getJedis)
 //
 //    for (i <- 0 to 100000000) {
 //      val uuid = UUID.randomUUID()

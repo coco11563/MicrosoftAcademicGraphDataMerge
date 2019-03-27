@@ -11,6 +11,9 @@ import org.json4s.jackson.JsonMethods._
 import utils.{JedisImplSer, UUIDEvaluator}
 
 object mainP {
+  /**
+    * primary step data merge
+    */
   val baseFileLocation : String = File.pathSeparator + "oadv2"
   val id_field_name = "id"
   val mag_paper : String = "/oadv2/mag/papers/*"

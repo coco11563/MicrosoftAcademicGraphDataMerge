@@ -13,22 +13,13 @@ import utils.{JedisImplSer, UUIDEvaluator}
 object mainP {
   val baseFileLocation : String = File.pathSeparator + "oadv2"
   val id_field_name = "id"
-  val mag_paper : String = "/oadv2/mag/papers/*"
-  val mag_author : String = "/oadv2/mag/authors/*"
-  val mag_venue : String = "/oadv2/mag/venues/*"
+  val mag_paper : String = "/oadv1/mag/papers/*"
   val uuid: UUIDEvaluator = UUIDEvaluator.getInstance()
 
-  val aminer_paper : String = "/oadv2/aminer/papers/*"
-  val aminer_author : String = "/oadv2/aminer/authors/*"
-  val aminer_venue : String = "/oadv2/aminer/venues/*"
+  val aminer_paper : String = "/oadv1/aminer/papers/*"
 
-  val author_linking : String = "/oadv2/author_linking_pairs.txt"
-  val venue_linking : String = "/oadv2/venue_linking_pairs.txt"
-  val paper_linking : String = "/oadv2/paper_linking_pairs.txt"
 
-  val venue_temp_out_path = "/tmp/oadv2/venue_combined"
-  val author_temp_out_path = "/tmp/oadv2/author_combined"
-  val paper_temp_out_path =  "/tmp/oadv2/paper_combined"
+  val paper_temp_out_path =  "/tmp/oadv1/paper_combined"
 
   val sparkConf: SparkConf = new SparkConf()
     .set("spark.driver.maxResultSize", "4g")
@@ -43,8 +34,6 @@ object mainP {
     .getOrCreate()
   def main(args: Array[String]): Unit = {
     import sys.process._
-    val t1 = s"hadoop fs -rmr $venue_temp_out_path" !
-    val t2 = s"hadoop fs -rmr $author_temp_out_path" !
     val t3 = s"hadoop fs -rmr $paper_temp_out_path"!
 
     val sc = sparkSession.sparkContext
@@ -53,18 +42,12 @@ object mainP {
     val jedis : JedisImplSer = new JedisImplSer("10.0.88.50", 6379)
     val jedis_broad : Broadcast[JedisImplSer] = sc.broadcast(jedis)
     lazy val mag_paper_rdd = sc.textFile(mag_paper).map(parse(_).asInstanceOf[JObject])
-    lazy val mag_venue_rdd =  sc.textFile(mag_venue).map(parse(_).asInstanceOf[JObject])
-    lazy val mag_author_rdd =  sc.textFile(mag_author).map(parse(_).asInstanceOf[JObject])
 
     lazy val aminer_paper_rdd =  sc.textFile(aminer_paper).map(parse(_).asInstanceOf[JObject])
-    lazy val aminer_venue_rdd =  sc.textFile(aminer_venue).map(parse(_).asInstanceOf[JObject])
-    lazy val aminer_author_rdd =  sc.textFile(aminer_author).map(parse(_).asInstanceOf[JObject])
 
     val process_fun: (RDD[JObject], RDD[JObject], String, String) => Unit = process(sql, jedis_broad)
 //    val process_fun_big: (String, RDD[JObject], RDD[JObject], String) => Unit = process(sql)
-    process_fun(mag_paper_rdd, aminer_paper_rdd, "oadv2.papers", paper_temp_out_path)
-    process_fun(mag_venue_rdd, aminer_venue_rdd, "oadv2.venues", venue_temp_out_path)
-    process_fun(mag_author_rdd, aminer_author_rdd, "oadv2.authors", author_temp_out_path)
+    process_fun(mag_paper_rdd, aminer_paper_rdd, "oadv1.papers", paper_temp_out_path)
   }
 
   def process(sql : SQLContext, jedis: Broadcast[JedisImplSer])
@@ -78,21 +61,6 @@ object mainP {
     final_venues_df.write.mode(SaveMode.Overwrite).saveAsTable(saveName)
   }
 
-//  def process(sql : SQLContext)
-//             (json_path : String, mag_rdd : RDD[JObject], aminer_rdd : RDD[JObject]
-//              , saveName : String): Unit = {
-//    val link_ds = sql.read.json(json_path)
-//    val mid_index = link_ds.schema.fieldIndex("mid")
-//    val aid_index = link_ds.schema.fieldIndex("aid")
-//    val link = link_ds
-//      .rdd
-//      .map(r => (r(mid_index).asInstanceOf[String], r(aid_index).asInstanceOf[String]))
-//    val final_venues = linkMerge(link
-//      ,mag_rdd
-//      ,aminer_rdd)
-//    val final_venues_df = sql.read.json(final_venues)
-//    final_venues_df.write.mode(SaveMode.Overwrite).saveAsTable(saveName)
-//  }
 
 
   def linkMerge(jedis : JedisImplSer,
@@ -122,27 +90,5 @@ object mainP {
           (a._1 merge b._1,"b")
       }).values.map(_._1).map(j => compact(j))
   }
-//  def linkMerge(linkin : RDD[(String,String)],
-//                part_a : RDD[JObject],
-//                part_b : RDD[JObject]) :  RDD[String] = {
-//    val kv_a = part_a
-//      .map(j => (j.values("id").asInstanceOf[String], j))
-//
-//    val kv_a_joined = kv_a.leftOuterJoin(linkin).map(a => {
-//      (a._2._2.getOrElse(a._1),(a._2._1, "a"))
-//    })
-//
-//    val kv_b = part_b
-//      .map(j => (j.values("id").asInstanceOf[String], (j, "b")))
-//    (kv_a_joined union kv_b)
-//      .repartition(500)
-//      .reduceByKey((a, b) => {
-//        if (a._2 == "a")
-//          (b._1 merge a._1, "a")
-//        else if (b._2 == "a")
-//          (a._1 merge b._1, "a")
-//        else
-//          (a._1 merge b._1,"b")
-//      }).values.map(_._1).map(j => compact(j))
-//  }
+
 }

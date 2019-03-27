@@ -26,11 +26,7 @@ object initRedis {
     val aid_index = link_ds.schema.fieldIndex("aid")
     val link = link_ds
       .rdd
-      .map(r => (r(mid_index).asInstanceOf[String], r(aid_index).asInstanceOf[String]))
-    if (args.length < 2 || args(1) == "overwrite") {
-      val jedis : JedisImplSer = new JedisImplSer("10.0.88.50", 6379)
-      JedisUtils.resetRedis(jedis.getJedis)
-    }
+      .map(r => (r(aid_index).asInstanceOf[String], r(mid_index).asInstanceOf[String]))
     sql.sparkSession.sparkContext.toRedisKV(link)
     sparkSession.stop()
 //    if (saveName.contains("author")) {
