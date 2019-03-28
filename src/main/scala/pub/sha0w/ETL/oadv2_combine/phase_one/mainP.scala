@@ -103,18 +103,17 @@ object mainP {
                 part_b : RDD[JObject]) :  RDD[String] = {
     // m -> a
     val kv_a = part_a
-      .map(j => (j.values("id").asInstanceOf[String], j))
+      .map(j => (j.values("id").asInstanceOf[String], (j, "a")))
     println(kv_a.take(1).head)
-    val kv_a_joined = kv_a.map(pair => {
-      (Option(jedis.getJedis.get(pair._1)).getOrElse(pair._1), (pair._2, "a"))
-    })
-    kv_a_joined.checkpoint()
     val kv_b = part_b
-      .map(j => (j.values("id").asInstanceOf[String], (j, "b")))
+      .map(j => (j.values("id").asInstanceOf[String], j))
+      .map(pair => {
+        (Option(jedis.getJedis.get(pair._1)).getOrElse(pair._1), (pair._2, "b"))
+      })
     println(kv_b.take(1).head)
     kv_b.checkpoint()
 
-    (kv_a_joined union kv_b)
+    (kv_a union kv_b)
       .repartition(500)
       .reduceByKey((a, b) => {
         if (a._2 == "a")
