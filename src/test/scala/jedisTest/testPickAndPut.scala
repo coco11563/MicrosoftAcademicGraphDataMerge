@@ -17,7 +17,7 @@ object testPickAndPut {
 //        println(i + ":")
 //        val start = System.currentTimeMillis()
         val ens = jedis.getJedis.get("test_key")
-    println(ens)
+//    println(ens)
 //        println(ens)
 //        val stop = System.currentTimeMillis()
 //        println("ending in : " + (stop - start))
