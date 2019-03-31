@@ -11,12 +11,12 @@ object testPickAndPut {
 //
 //    for (i <- 0 to 100000000) {
 //      val uuid = UUID.randomUUID()
-      jedis.getJedis.set("test_key" ,"test_value")
+//      jedis.getJedis.set("test_key" ,"test_value")
 //      var test_key = uuid.toString + "test_key"
 //      if (i % 100000 == 0) {
 //        println(i + ":")
 //        val start = System.currentTimeMillis()
-        val ens = jedis.getJedis.get("test_key")
+        //val ens = jedis.getJedis.get("test_key")
 //    println(ens)
 //        println(ens)
 //        val stop = System.currentTimeMillis()
