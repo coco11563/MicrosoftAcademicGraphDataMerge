@@ -57,7 +57,7 @@ object mainP {
     val jedis_broad : Broadcast[JedisImplSer] = sc.broadcast(jedis)
     lazy val mag_paper_rdd = sc.textFile(mag_paper).map(parse(_).asInstanceOf[JObject])
     lazy val mag_venue_rdd =  sc.textFile(mag_venue).map(parse(_).asInstanceOf[JObject])
-    lazy val mag_author_rdd =  sc.textFile(mag_author).map(parse(_).asInstanceOf[JObject])
+    lazy val mag_author_rdd: RDD[JObject] =  sc.textFile(mag_author).map(parse(_).asInstanceOf[JObject])
 
     lazy val aminer_paper_rdd =  sc.textFile(aminer_paper).map(parse(_).asInstanceOf[JObject])
     lazy val aminer_venue_rdd =  sc.textFile(aminer_venue).map(parse(_).asInstanceOf[JObject])
