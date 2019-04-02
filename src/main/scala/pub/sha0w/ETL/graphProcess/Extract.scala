@@ -101,7 +101,7 @@ object Extract {
     venue_key_pair_df.write.mode(SaveMode.Overwrite).saveAsTable("oad.venue_paper_relationship")
     val venue_table = sparkSession.read.table("oadv2.venues")
     val venue_rdd = venue_table.rdd.map(r => {
-      Row.fromSeq(r.toSeq ++ "o")
+      Row.fromSeq(r.toSeq :+ "o")
     })
     var venue_schema = venue_table.schema
     venue_schema = new StructType((venue_schema.toList :+ StructField("source", StringType, nullable = false)).toArray)
@@ -163,7 +163,7 @@ object Extract {
 
     val author_table = sparkSession.read.table("oadv2.authors")
     val author_rdd = author_table.rdd.map(r => {
-      Row.fromSeq(r.toSeq ++ "o")
+      Row.fromSeq(r.toSeq :+ "o")
     })
     var author_schema = author_table.schema
     author_schema =
@@ -253,8 +253,8 @@ object Extract {
 
 
     val keyword_schema = new StructType(
-      Array(StructField("id", StringType, false),
-        StructField("name", StringType, false)))
+      Array(StructField("id", StringType, nullable = false),
+        StructField("name", StringType, nullable = false)))
     val keyword_append_rdd = sparkSession
       .sparkContext
       .parallelize(keyword_accumulator.value.map(
