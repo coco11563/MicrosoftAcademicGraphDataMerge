@@ -121,6 +121,7 @@ object Extract {
       .saveAsTable("oad.venue_entity")
 
     venue_accumulator.reset()
+
     val author = paper_table.select("id","authors")
     val author_index = schema.fieldIndex("authors")
     val author_kv_rdd = author.rdd.map(r => (r.getAs[String]("id"), {
@@ -265,7 +266,7 @@ object Extract {
       .write
       .mode(SaveMode.Overwrite)
       .saveAsTable("oad.keyword_entity")
-    fos_accumulator.reset()
+    keyword_accumulator.reset()
 
 
     val reference = paper_table.select("id" , "references") //ARRAY
