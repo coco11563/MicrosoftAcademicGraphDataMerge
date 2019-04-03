@@ -106,8 +106,6 @@ object Extract {
     venue_schema = new StructType((venue_schema.toList :+ StructField("source", StringType, nullable = false)).toArray)
     sparkSession.createDataFrame(venue_rdd
       , venue_schema).write.mode(SaveMode.Overwrite).saveAsTable("oad.venue_entity")
-
-    import scala.collection.JavaConversions._
     val venue_append_rdd = venue_obj_rdd.values
       .map(v => v.parse(venue_schema))
       .map(r => (r.getAs[String](0), r))
@@ -161,8 +159,6 @@ object Extract {
         StructField("author_id", StringType, nullable = false))
       )).write.mode(SaveMode.Overwrite).saveAsTable("oad.author_paper_relation")
 
-
-
     val author_obj_rdd = author.rdd.map(r => {
       val au = r.getAs[mutable.WrappedArray[GenericRowWithSchema]]("authors")
       au.filter(f => f != null)
@@ -203,7 +199,7 @@ object Extract {
     val fos_pair = fos.rdd.map(r => {
       (r.getAs[String]("id"), r.getAs[mutable.WrappedArray[String]]("fos"))
     }).filter(s => s._2 != null).map(pair => {
-      pair._2.map(s => (pair._1, s)).toList
+      pair._2.filter(s => s != null).map(s => (pair._1, s)).toList
     }).flatMap(a => a)
 
     val fos_row_rdd = fos_pair.map(f => {(f._1,f._2.##.toString)}).map(pair => Row.fromTuple(pair))
@@ -240,7 +236,7 @@ object Extract {
     val keywords = paper_table.select("id", "keywords") //ARRAY
     val keyword_pair = keywords.rdd.map(r => {
       (r.getAs[String]("id"), r.getAs[mutable.WrappedArray[String]]("keywords"))
-    }).map(pair => {
+    }).filter(s => s._2 != null).map(pair => {
       pair._2.filter(s => s != null).map(s => (pair._1, s)).toList
     }).flatMap(a => a)
     val keyword_rdd = keyword_pair.map(f => {(f._1,f._2.##.toString)}).map(pair => Row.fromTuple(pair))
@@ -281,7 +277,7 @@ object Extract {
     val reference = paper_table.select("id" , "references") //ARRAY
     val reference_pair = reference.rdd.map(r => {
       (r.getAs[String]("id"), r.getAs[mutable.WrappedArray[String]]("references"))
-    }).map(pair => {
+    }).filter(s => s._2 != null).map(pair => {
       pair._2.filter(s => s != null).map(s => (pair._1, s)).toList
     }).flatMap(a => a)
     val reference_rdd = reference_pair.map(pair => Row.fromTuple(pair))
@@ -298,11 +294,11 @@ object Extract {
     //    paper_entity.dropDuplicates("id").write.mode(SaveMode.Overwrite).saveAsTable("oad.paper_entity")
 
     val author_entity = sparkSession.read.table("oad.author_entity")
-    author_entity.dropDuplicates("id").write.mode(SaveMode.Overwrite).saveAsTable("oad.author_entity")
+    author_entity.dropDuplicates("id").write.mode(SaveMode.Overwrite).saveAsTable("oad.author_entity_dup")
 
 
     val venue_entity = sparkSession.read.table("oad.venue_entity")
-    venue_entity.dropDuplicates("id").write.mode(SaveMode.Overwrite).saveAsTable("oad.venue_entity")
+    venue_entity.dropDuplicates("id").write.mode(SaveMode.Overwrite).saveAsTable("oad.venue_entity_dup")
 
 
     //    val fos_entity = sparkSession.read.table("oad.fos_entity")
