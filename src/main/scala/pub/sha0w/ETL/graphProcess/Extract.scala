@@ -16,20 +16,23 @@ import scala.collection.mutable
 object Extract {
   def main(args: Array[String]): Unit = {
     val sparkConf: SparkConf = new SparkConf()
-      .set("spark.driver.maxResultSize", "4g")
+      .set("spark.driver.maxResultSize", "6g")
       .set("spark.default.parallelism", "500")
       .set("spark.redis.host", "10.0.88.50")
       .set("spark.redis.port", "6379")
       .setAppName("MY_APP_NAME")
+
     val sparkSession: SparkSession = SparkSession
       .builder()
       .config(sparkConf)
       .enableHiveSupport()
       .getOrCreate()
-    val venue_accumulator = sparkSession.sparkContext.collectionAccumulator[Venue]
-    val author_accumulator = sparkSession.sparkContext.collectionAccumulator[Author]
-    val fos_accumulator = sparkSession.sparkContext.collectionAccumulator[Fos]
-    val keyword_accumulator = sparkSession.sparkContext.collectionAccumulator[Keyword]
+    val sc = sparkSession.sparkContext
+    sc.setCheckpointDir("/tmp/oadv2/checkpoint_location")
+    val venue_accumulator = sc.collectionAccumulator[Venue]
+    val author_accumulator = sc.collectionAccumulator[Author]
+    val fos_accumulator = sc.collectionAccumulator[Fos]
+    val keyword_accumulator = sc.collectionAccumulator[Keyword]
     var paper_table = sparkSession.read.table("oadv2.v1_v2_merged_table")
     var schema = paper_table.schema
     val id_index = schema.fieldIndex("id")
@@ -61,8 +64,8 @@ object Extract {
       .updated(id_index, StructField("id", StringType, nullable = false))
     )
     paper_table = sparkSession.createDataFrame(paper_rdd, schema)
-    val select_paper_entity = paper_table.select("abstract","doc_type","doi","id","isbn","issn","issue","lang","n_citation","page_end","page_start","pdf","publisher","title","url","volume","year")
-    select_paper_entity.write.mode(SaveMode.Overwrite).saveAsTable("oad.paper_entity")
+//    val select_paper_entity = paper_table.select("abstract","doc_type","doi","id","isbn","issn","issue","lang","n_citation","page_end","page_start","pdf","publisher","title","url","volume","year")
+//    select_paper_entity.write.mode(SaveMode.Overwrite).saveAsTable("oad.paper_entity")
     val venue = paper_table.select("id", "venue")
     val jedis : JedisImplSer = new JedisImplSer("10.0.88.50", 6379)
     val venue_key_pair_rdd = venue.rdd.map(r =>
@@ -94,6 +97,7 @@ object Extract {
         }
       })
     }).filter(pair => {pair._2 != null}).map(p => Row.fromTuple(p))
+    venue_key_pair_rdd.checkpoint()
     val venue_key_pair_df = sparkSession.createDataFrame(venue_key_pair_rdd,
         StructType(Array(StructField("paper_id", StringType, nullable = false),
           StructField("venue_id", StringType, nullable = false)))
@@ -109,8 +113,7 @@ object Extract {
     , venue_schema).write.mode(SaveMode.Overwrite).saveAsTable("oad.venue_entity")
 
     import scala.collection.JavaConversions._
-    val venue_append_rdd = sparkSession
-      .sparkContext
+    val venue_append_rdd = sc
       .parallelize(venue_accumulator.value.map(v => v.parse(venue_schema)))
       .map(r => (r.getAs[String](0), r))
       .reduceByKey((r1,r2) => r1)
@@ -123,7 +126,6 @@ object Extract {
     venue_accumulator.reset()
 
     val author = paper_table.select("id","authors")
-    val author_index = schema.fieldIndex("authors")
     val author_kv_rdd = author.rdd.map(r => (r.getAs[String]("id"), {
       val au = r.getAs[mutable.WrappedArray[GenericRowWithSchema]]("authors")
       au.filter(f => f != null)
@@ -155,7 +157,7 @@ object Extract {
       r._2.map(f => (r._1, f)).toList
     }).flatMap[(String, String)](a => a) //problem
       .map(t => {Row.fromTuple(t)})
-
+    author_kv_rdd.checkpoint()
     sparkSession
       .createDataFrame(author_kv_rdd, new StructType(Array(StructField("paper_id", StringType, nullable = false),
         StructField("author_id", StringType, nullable = false))
@@ -170,8 +172,7 @@ object Extract {
       new StructType((author_schema.toList :+ StructField("source", StringType, nullable = false)).toArray)
     sparkSession.createDataFrame(author_rdd
       , author_schema).write.mode(SaveMode.Overwrite).saveAsTable("oad.author_entity")
-    val author_append_rdd = sparkSession
-      .sparkContext
+    val author_append_rdd = sc
       .parallelize(author_accumulator.value.map(v => v.parse(author_schema)))
       .map(r => (r.getAs[String](0), r))
       .reduceByKey((r1,r2) => r1)
@@ -202,6 +203,7 @@ object Extract {
         val id = str.##.toString
         fos_accumulator.add(new Fos(id, name))
       })
+    fos_pair.checkpoint()
     val fos_row_rdd = fos_pair.map(f => {(f._1,f._2.##.toString)}).map(pair => Row.fromTuple(pair))
     sparkSession.createDataFrame(fos_row_rdd,
       new StructType(Array(StructField("id", StringType, nullable = false), StructField("fos_id", StringType, nullable = false))))
@@ -211,8 +213,7 @@ object Extract {
     val fos_schema = new StructType(
       Array(StructField("id", StringType, false),
         StructField("name", StringType, false)))
-    val fos_append_rdd = sparkSession
-      .sparkContext
+    val fos_append_rdd = sc
       .parallelize(fos_accumulator.value.map(
         v => v.parse(fos_schema)))
       .map(r => (r.getAs[String](0), r))
@@ -243,6 +244,7 @@ object Extract {
         val name = str
         keyword_accumulator.add(new Keyword(id, name))
       })
+    keyword_pair.checkpoint()
     val keyword_rdd = keyword_pair.map(f => {(f._1,f._2.##.toString)}).map(pair => Row.fromTuple(pair))
     sparkSession.createDataFrame(keyword_rdd,
       new StructType(Array(StructField("id", StringType, nullable = false),
