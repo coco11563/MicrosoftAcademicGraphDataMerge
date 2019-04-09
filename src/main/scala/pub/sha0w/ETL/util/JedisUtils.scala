@@ -1,13 +1,11 @@
-package pub.sha0w.ETL
+package pub.sha0w.ETL.util
 
 import java.util
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row}
 import redis.clients.jedis.{HostAndPort, Jedis, JedisCluster}
 import utils.JedisImplSer
 
-import scala.collection.JavaConversions._
 object JedisUtils {
         def buildRedisClusterConf(redisHost : String, redisPort : String) : util.Set[HostAndPort] = {
           var setRet = new util.HashSet[HostAndPort]
@@ -76,33 +74,33 @@ object JedisUtils {
       })
   }
   // new
-  def relationPersist(df : DataFrame, jedisImplSer: JedisImplSer, fieldName : String) : Unit = {
-    df.rdd
-      .foreach(r => {
-        val key = r.getAs[String](0)
-        val value = r.getAs[String](1)
-        val map = jedisImplSer.getJedis.hgetAll(key + "hmset")
-        if (map.isEmpty) jedisImplSer.getJedis.hmset(key+ "hmset", Map[String,String](fieldName-> value))
-        else {
-          val old = map.get(fieldName)
-          if (old.isEmpty) {
-            map.put(fieldName, value)
-          } else {
-            map.put(fieldName, value + "," + old)
-          }
-          jedisImplSer.getJedis.hmset(key + "hmset", map)
-        }
-      })
-  }
+//  def relationPersist(df : DataFrame, jedisImplSer: JedisImplSer, fieldName : String) : Unit = {
+//    df.rdd
+//      .foreach(r => {
+//        val key = r.getAs[String](0)
+//        val value = r.getAs[String](1)
+//        val map = jedisImplSer.getJedis.hgetAll(key + "hmset")
+//        if (map.isEmpty) jedisImplSer.getJedis.hmset(key+ "hmset", Map[String,String](fieldName-> value))
+//        else {
+//          val old = map.get(fieldName)
+//          if (old.isEmpty) {
+//            map.put(fieldName, value)
+//          } else {
+//            map.put(fieldName, value + "," + old)
+//          }
+//          jedisImplSer.getJedis.hmset(key + "hmset", map)
+//        }
+//      })
+//  }
   // new
-  def getKeyField(jedisImplSer: JedisImplSer, key : String, field : String) : String = {
-    val keys = Option(jedisImplSer.getJedis.hmget(key + "hmset", field)(0))
-    if (keys.isEmpty) null
-    else {
-      val list = keys.get.split(",")
-      list.map(str => jedisImplSer.getJedis.hget(str + "hset", field)).reduce(_ + "," + _)
-    }
-  }
+//  def getKeyField(jedisImplSer: JedisImplSer, key : String, field : String) : String = {
+//    val keys = Option(jedisImplSer.getJedis.hmget(key + "hmset", field)(0))
+//    if (keys.isEmpty) null
+//    else {
+//      val list = keys.get.split(",")
+//      list.map(str => jedisImplSer.getJedis.hget(str + "hset", field)).reduce(_ + "," + _)
+//    }
+//  }
 
   def getFather(key:String, jedis : JedisImplSer): String = {
     val s = jedis.getJedis.get(key)

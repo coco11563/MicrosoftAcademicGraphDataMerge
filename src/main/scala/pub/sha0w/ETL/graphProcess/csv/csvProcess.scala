@@ -4,6 +4,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import pub.sha0w.ETL.graphProcess.utils.HDFSUtils
+import pub.sha0w.ETL.util.CSVUtils
 
 import scala.collection.mutable.ListBuffer
 
@@ -25,9 +26,28 @@ object csvProcess {
     sc.setCheckpointDir("/tmp/oadv2/checkpoint_location")
     val otp = "/oad/out/csv"
     for (
-    str <- Array("author_entity","author_paper_relation","fos_entity","fos_paper_relation","keyword_entity","keyword_paper_relation","paper_entity","reference_paper_relation","venue_entity","venue_paper_relationship")
+    str <- Array(
+      "author_entity","author_paper_relation",
+      "fos_entity","fos_paper_relation","keyword_entity",
+      "keyword_paper_relation","paper_entity",
+      "reference_paper_relation","venue_entity",
+      "venue_paper_relationship"
+    )
     ) {
-      process("oad." + str, otp + str, sparkSession)
+      val table = sparkSession.read.table("oad." + str)
+      str match {
+        case "author_entity" => CSVUtils.mkEntityCSV(table, "AUTHOR", otp + str )
+        case "author_paper_relation" => CSVUtils.mkRelationCSV(table, "write", "write", otp + str)
+        case "fos_entity" => CSVUtils.mkEntityCSV(table, "FOS", otp + str)
+        case "fos_paper_relation" => CSVUtils.mkRelationCSV(table, "fos", "fos", otp + str)
+        case "keyword_entity" => CSVUtils.mkEntityCSV(table, "KEYWORD", otp + str)
+        case "keyword_paper_relation" => CSVUtils.mkRelationCSV(table, "keyword", "keyword", otp + str)
+        case "reference_paper_relation" => CSVUtils.mkRelationCSV(table, "cite", "cite", otp + str)
+        case "venue_entity" => CSVUtils.mkEntityCSV(table, "VENUE", otp + str)
+        case "venue_paper_relationship" => CSVUtils.mkRelationCSV(table, "pub_on", "venue", otp + str)
+        case _ => throw new Exception("WRONG NAME")
+      }
+//      process(, otp + str, sparkSession)
       HDFSUtils.mergeFileByShell(otp + str, "/data/csv" + otp + ".csv")
     }
   }
@@ -60,14 +80,5 @@ object csvProcess {
       i += 1
     }
     Row.fromSeq(li)
-  }
-  def process (tableName: String, outputPath : String, spark : SparkSession) : Unit ={
-    val table = spark.read.table(tableName)
-    table.write
-      .format("csv")
-      .option("header", "true")
-      .option("delimiter","\t")
-      .option("quote","\"")
-      .save(outputPath)
   }
 }

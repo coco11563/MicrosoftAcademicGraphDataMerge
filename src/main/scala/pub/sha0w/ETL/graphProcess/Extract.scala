@@ -9,7 +9,6 @@ import org.apache.spark.sql.{Row, SaveMode, SparkSession}
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import pub.sha0w.ETL.graphProcess.obj.{Author, Fos, Keyword, Venue}
-import utils.JedisImplSer
 
 import scala.collection.mutable
 
@@ -63,7 +62,7 @@ object Extract {
     //    val select_paper_entity = paper_table.select("abstract","doc_type","doi","id","isbn","issn","issue","lang","n_citation","page_end","page_start","pdf","publisher","title","url","volume","year")
     //    select_paper_entity.write.mode(SaveMode.Overwrite).saveAsTable("oad.paper_entity")
     val venue = paper_table.select("id", "venue")
-    val jedis : JedisImplSer = new JedisImplSer("10.0.88.50", 6379)
+//    val jedis : JedisImplSer = new JedisImplSer("10.0.88.50", 6379)
     val venue_pair_schema = StructType(Array(StructField("paper_id", StringType, nullable = false),
       StructField("venue_id", StringType, nullable = false)))
     val venue_obj_rdd = venue.rdd.map(r => {

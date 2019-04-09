@@ -1,6 +1,6 @@
 package jedisTest
 
-import pub.sha0w.ETL.JedisUtils
+import pub.sha0w.ETL.util.JedisUtils
 import redis.clients.jedis.HostAndPort
 import utils.JedisImplSer
 

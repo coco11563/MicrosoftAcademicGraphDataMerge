@@ -3,7 +3,7 @@ package pub.sha0w.ETL.oadv2_combine.phase_one
 import com.redislabs.provider.redis._
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import pub.sha0w.ETL.JedisUtils
+import pub.sha0w.ETL.util.JedisUtils
 import utils.JedisImplSer
 object initRedis {
   def main(args: Array[String]): Unit = {
