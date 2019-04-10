@@ -43,19 +43,20 @@ class Entity extends Serializable {
         else
           Array("")
       }
-      value
-        .map(f => if (f == "") "\"\"" else f)
-        .map(_.replaceAll(";", " "))
-        .reduce((a,b) => a + ";" + b)
+      val value_ = value
+        .map(_.replaceAll("\"" , "\'"))
+        .map(_.replaceAll(";", "；"))
+        .map(_.replaceAll("\n", " "))
+        .map(_.replaceAll("\r", " "))
+        .map(_.replaceAll("\t", " "))
+
+      if (value_.nonEmpty) value_.reduce((a,b) => a + ";" + b)
+      else ""
     }
-    ret ++= l
+    val fl = l.map(s => if(s.contains(",")) "\"" + s + "\"" else s)
+    ret ++= fl
     ret += label
-    ret.map(s => {
-      if (s.contains(","))
-        "\"" + s + "\""
-      else
-        s
-    }).toArray
+    ret.toArray
   }
 
   override def toString: String = {

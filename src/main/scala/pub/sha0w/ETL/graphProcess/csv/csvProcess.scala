@@ -12,9 +12,6 @@ object csvProcess {
   def main(args: Array[String]): Unit = {
     val sparkConf: SparkConf = new SparkConf()
       .set("spark.driver.maxResultSize", "6g")
-      .set("spark.default.parallelism", "500")
-      .set("spark.redis.host", "10.0.88.50")
-      .set("spark.redis.port", "6379")
       .setAppName("MY_APP_NAME")
 
     val sparkSession: SparkSession = SparkSession
@@ -27,28 +24,31 @@ object csvProcess {
     val otp = "/oad/out/csv"
     for (
     str <- Array(
+      "venue_entity",
+      "venue_paper_relationship",
       "author_entity","author_paper_relation",
       "fos_entity","fos_paper_relation","keyword_entity",
-      "keyword_paper_relation","paper_entity",
-      "reference_paper_relation","venue_entity",
-      "venue_paper_relationship"
+      "keyword_paper_relation",
+      "paper_entity",
+      "reference_paper_relation"
     )
     ) {
       val table = sparkSession.read.table("oad." + str)
       str match {
-        case "author_entity" => CSVUtils.mkEntityCSV(table, "AUTHOR", otp + str )
-        case "author_paper_relation" => CSVUtils.mkRelationCSV(table, "write", "write", otp + str)
-        case "fos_entity" => CSVUtils.mkEntityCSV(table, "FOS", otp + str)
-        case "fos_paper_relation" => CSVUtils.mkRelationCSV(table, "fos", "fos", otp + str)
-        case "keyword_entity" => CSVUtils.mkEntityCSV(table, "KEYWORD", otp + str)
-        case "keyword_paper_relation" => CSVUtils.mkRelationCSV(table, "keyword", "keyword", otp + str)
-        case "reference_paper_relation" => CSVUtils.mkRelationCSV(table, "cite", "cite", otp + str)
-        case "venue_entity" => CSVUtils.mkEntityCSV(table, "VENUE", otp + str)
-        case "venue_paper_relationship" => CSVUtils.mkRelationCSV(table, "pub_on", "venue", otp + str)
+        case "author_entity" => CSVUtils.mkEntityCSV(table, "AUTHOR", otp + "/" + str )
+        case "author_paper_relation" => CSVUtils.mkRelationCSV(table, "write", "write", otp+ "/" + str)
+        case "fos_entity" => CSVUtils.mkEntityCSV(table, "FOS", otp+ "/" + str)
+        case "fos_paper_relation" => CSVUtils.mkRelationCSV(table, "fos", "fos", otp+ "/" + str)
+        case "keyword_entity" => CSVUtils.mkEntityCSV(table, "KEYWORD", otp+ "/" + str)
+        case "keyword_paper_relation" => CSVUtils.mkRelationCSV(table, "keyword", "keyword", otp+ "/" + str)
+        case "reference_paper_relation" => CSVUtils.mkRelationCSV(table, "cite", "cite", otp+ "/" + str)
+        case "venue_entity" => CSVUtils.mkEntityCSV(table, "VENUE", otp+ "/" + str)
+        case "paper_entity" => CSVUtils.mkEntityCSV(table, "PAPER", otp + "/" + str)
+        case "venue_paper_relationship" => CSVUtils.mkRelationCSV(table, "pub_on", "venue", otp+ "/" + str)
         case _ => throw new Exception("WRONG NAME")
       }
 //      process(, otp + str, sparkSession)
-      HDFSUtils.mergeFileByShell(otp + str, "/data/csv" + otp + ".csv")
+//      HDFSUtils.mergeFileByShell(otp + "/" + str, "/data/csv" +  "/" + str + ".csv")
     }
   }
   def washForCsv(df : DataFrame) : DataFrame = {
