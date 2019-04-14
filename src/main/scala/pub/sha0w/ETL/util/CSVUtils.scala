@@ -11,6 +11,7 @@ object CSVUtils {
   // build relationship
   def mkEntityCSV (df : DataFrame, label : String, path : String) : Unit = {
     import sys.process._
+//    val accu = df.sparkSession.sparkContext.collectionAccumulator[String]("TOO LONG ACCU")
     val t3 = s"hadoop fs -rmr $path"!
     val schema = df.schema
     val rdd = df.rdd
@@ -31,19 +32,30 @@ object CSVUtils {
           s.dataType match {
             case dt: ArrayType =>
               if (dt.elementType.isInstanceOf[StringType]) {
-                e.addPro(s.name, row.getAs[mutable.WrappedArray[String]](s.name).toArray)
+                val arr = row.getAs[mutable.WrappedArray[String]](s.name).toArray
+                val valid_arr = arr.filter(_.length < 30000)
+//                val unvalid_arr = arr.filter(_.length > 30000)
+//                unvalid_arr.foreach(accu.add)
+                e.addPro(s.name, valid_arr)
+                   // filter too long string
               } else {
                 val elementType = dt.elementType.asInstanceOf[StructType]
                 val elem: mutable.Seq[GenericRowWithSchema] = row.getAs[mutable.WrappedArray[GenericRowWithSchema]](s.name)
                 val elem_arr: mutable.Seq[String] = elem.map(g => {
                   val elem_array = for (_s <- elementType) yield {
-                    if (!g.isNullAt(g.schema.fieldIndex(_s.name))) {
-                      _s.dataType match {
-                        case dt: StringType => "(" + _s.name + "," + g.getAs[String](_s.name) + ")"
-                        case dt: IntegerType => "(" + _s.name + "," + g.getAs[Int](_s.name).toString + ")"
-                        case dt: LongType => "(" + _s.name + "," + g.getAs[Long](_s.name).toString + ")"
-                        case _ => "(" + _s.name + "," + g.getAs[String](_s.name) + ")"
-                    }
+                    if (!g.isNullAt(g.schema.fieldIndex(_s.name))) _s.dataType match {
+                      case dt: StringType =>
+                        val str = g.getAs[String](_s.name)
+                        if (str.length < 30000) { // filter too long string
+                          "(" + _s.name + "," + str + ")"
+                        }
+                        else {
+//                          accu.add(str)
+                          "(" + _s.name + "," + null + ")"
+                        }
+                      case dt: IntegerType => "(" + _s.name + "," + g.getAs[Int](_s.name).toString + ")"
+                      case dt: LongType => "(" + _s.name + "," + g.getAs[Long](_s.name).toString + ")"
+                      case _ => "(" + _s.name + "," + g.getAs[String](_s.name) + ")"
                   } else {
                       ""
                     }
@@ -64,8 +76,15 @@ object CSVUtils {
             case df: StringType =>
               if (s.name == "id")
                 e.addId(row.getAs[String]("id"))
-              else
-                e.addPro(s.name, Array(row.getAs[String](s.name)))
+              else {
+                val str = row.getAs[String](s.name)
+                if (str.length < 3000) { // filter too long string
+                  e.addPro(s.name, Array(row.getAs[String](s.name)))
+                } else {
+
+                }
+//                  accu.add(str)
+              }
           }
         }
       }
@@ -73,6 +92,8 @@ object CSVUtils {
       e.toString
     })
     df.sparkSession.sparkContext.parallelize(Array(csvSchema)) ++ final_rdd saveAsTextFile path
+    import scala.collection.JavaConversions._
+//    df.sparkSession.sparkContext.parallelize(accu.value) saveAsTextFile (path + "fault")
   }
   // build entity csv
   def mkRelationCSV (df : DataFrame, role : String, `type` : String, path : String) : Unit = {

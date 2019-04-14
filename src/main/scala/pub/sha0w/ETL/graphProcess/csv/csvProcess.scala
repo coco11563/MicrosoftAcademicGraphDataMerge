@@ -3,7 +3,6 @@ package pub.sha0w.ETL.graphProcess.csv
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import pub.sha0w.ETL.graphProcess.utils.HDFSUtils
 import pub.sha0w.ETL.util.CSVUtils
 
 import scala.collection.mutable.ListBuffer
@@ -24,13 +23,14 @@ object csvProcess {
     val otp = "/oad/out/csv"
     for (
     str <- Array(
-      "venue_entity",
-      "venue_paper_relationship",
-      "author_entity","author_paper_relation",
-      "fos_entity","fos_paper_relation","keyword_entity",
-      "keyword_paper_relation",
+//      "venue_entity",
+//      "venue_paper_relationship",
+//      "author_entity","author_paper_relation",
+//      "fos_entity","fos_paper_relation","keyword_entity",
+//      "keyword_paper_relation",
       "paper_entity",
-      "reference_paper_relation"
+//      "reference_paper_relation"
+      "author_entity"
     )
     ) {
       val table = sparkSession.read.table("oad." + str)
