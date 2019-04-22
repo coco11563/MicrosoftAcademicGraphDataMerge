@@ -53,7 +53,7 @@ class Entity extends Serializable {
       if (value_.nonEmpty) value_.reduce((a,b) => a + ";" + b)
       else ""
     }
-    val fl = l.map(s => if(s.contains(",")) "\"" + s + "\"" else s)
+    val fl = l.map(s => if(s.contains(",")) "\" " + s + " \"" else s)
     ret ++= fl
     ret += label
     ret.toArray

@@ -12,7 +12,7 @@ object CSVUtils {
   def mkEntityCSV (df : DataFrame, label : String, path : String) : Unit = {
     import sys.process._
 //    val accu = df.sparkSession.sparkContext.collectionAccumulator[String]("TOO LONG ACCU")
-    val t3 = s"hadoop fs -rmr $path"!
+    val t3 = s"hadoop fs -rmr $path" !
     val schema = df.schema
     val rdd = df.rdd
     val csvSchema = "ENTITY_ID:ID," + schema.filter(f => f.name != "id").map(f => {
@@ -33,10 +33,10 @@ object CSVUtils {
             case dt: ArrayType =>
               if (dt.elementType.isInstanceOf[StringType]) {
                 val arr = row.getAs[mutable.WrappedArray[String]](s.name).toArray
-                val valid_arr = arr.filter(_.length < 30000)
+                val valid_arr = arr.filter(_.length < 30000).map(str => regexReplace(str))
 //                val unvalid_arr = arr.filter(_.length > 30000)
 //                unvalid_arr.foreach(accu.add)
-                e.addPro(s.name, valid_arr)
+                if (arr.length < 1000) e.addPro(s.name, valid_arr)
                    // filter too long string
               } else {
                 val elementType = dt.elementType.asInstanceOf[StructType]
@@ -46,8 +46,9 @@ object CSVUtils {
                     if (!g.isNullAt(g.schema.fieldIndex(_s.name))) _s.dataType match {
                       case dt: StringType =>
                         val str = g.getAs[String](_s.name)
+
                         if (str.length < 30000) { // filter too long string
-                          "(" + _s.name + "," + str + ")"
+                          "(" + _s.name + "," + regexReplace(str) + ")"
                         }
                         else {
 //                          accu.add(str)
@@ -64,7 +65,7 @@ object CSVUtils {
                   if (elem_arr.nonEmpty) elem_arr.reduce((a, b) => a + ";" + b)
                   else null
                 })
-                e.addPro(s.name, elem_arr.toArray)
+                if (elem_arr.length < 1000)e.addPro(s.name, elem_arr.toArray)
               }
             case df: LongType =>
               if (s.name == "id")
@@ -78,8 +79,9 @@ object CSVUtils {
                 e.addId(row.getAs[String]("id"))
               else {
                 val str = row.getAs[String](s.name)
-                if (str.length < 3000) { // filter too long string
-                  e.addPro(s.name, Array(row.getAs[String](s.name)))
+
+                if (str.length < 30000) { // filter too long string
+                  e.addPro(s.name, Array(regexReplace(str)))
                 } else {
 
                 }
@@ -111,5 +113,11 @@ object CSVUtils {
     })
     finalRelationshipSchemaArray ++ final_rdd saveAsTextFile path
   }
+
+
+  def regexReplace(str : String) : String = {
+    str.replaceAll("[\\\\]*\\\"","\"")
+  }
+
 }
 

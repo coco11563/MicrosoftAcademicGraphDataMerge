@@ -48,7 +48,7 @@ object mainP {
     import sys.process._
     val t1 = s"hadoop fs -rmr $venue_temp_out_path" !
     val t2 = s"hadoop fs -rmr $author_temp_out_path" !
-    val t3 = s"hadoop fs -rmr $paper_temp_out_path"!
+    val t3 = s"hadoop fs -rmr $paper_temp_out_path" !
 
     val sc = sparkSession.sparkContext
     sc.setCheckpointDir("/tmp/oadv2/checkpoint_location")
